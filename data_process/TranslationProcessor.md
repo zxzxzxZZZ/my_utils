@@ -77,3 +77,4 @@ processor.run(api_kwargs={"temperature": 0.7, "max_tokens": 2048})
     {path:"pic.jpg", label:["一朵花", "一朵红花", "a flower", "a red flower"]}
     ....
     
+    
