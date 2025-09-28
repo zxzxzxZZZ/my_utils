@@ -118,6 +118,7 @@ def create_client(**kwargs):
 
 
 if __name__ == "__main__":
+    # TODO: 添加运行错误后的断点重启逻辑
     source_file = "data/input.json"
     output_file = "data/output.jsonl"
     error_file = "data/errors.jsonl"
@@ -159,4 +160,4 @@ if __name__ == "__main__":
     }
 
     processor.run(api_kwargs=api_kwargs)
-    
+
