@@ -1,0 +1,176 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>闪电反应测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .target-area {
+            transition: background-color 0.3s ease;
+        }
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <header class="bg-indigo-600 text-white p-4 shadow-md">
+        <h1 class="text-2xl font-bold text-center">⚡ 闪电反应测试</h1>
+    </header>
+
+    <main class="flex-grow container mx-auto p-4 flex flex-col items-center">
+        <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <span class="text-gray-600">最佳记录:</span>
+                    <span id="best-time" class="font-bold ml-2">-</span>
+                </div>
+                <div>
+                    <span class="text-gray-600">平均:</span>
+                    <span id="avg-time" class="font-bold ml-2">-</span>
+                </div>
+            </div>
+
+            <div id="target-area" 
+                 class="target-area w-full h-64 rounded-lg bg-gray-200 flex items-center justify-center cursor-pointer mb-4">
+                <p id="instruction" class="text-xl font-semibold">点击开始测试</p>
+            </div>
+
+            <div class="flex justify-between mb-4">
+                <button id="start-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">
+                    开始测试
+                </button>
+                <select id="difficulty" class="border rounded-lg px-3 py-2">
+                    <option value="easy">简单模式</option>
+                    <option value="medium" selected>中等模式</option>
+                    <option value="hard">困难模式</option>
+                </select>
+            </div>
+
+            <div class="bg-gray-50 p-3 rounded-lg">
+                <h3 class="font-semibold mb-2">测试记录 (毫秒)</h3>
+                <div id="history" class="flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 text-white p-4 text-center text-sm">
+        <p>点击绿色区域时越快越好，人类平均反应时间约250毫秒</p>
+    </footer>
+
+    <script>
+        const targetArea = document.getElementById('target-area');
+        const instruction = document.getElementById('instruction');
+        const startBtn = document.getElementById('start-btn');
+        const difficultySelect = document.getElementById('difficulty');
+        const bestTimeEl = document.getElementById('best-time');
+        const avgTimeEl = document.getElementById('avg-time');
+        const historyEl = document.getElementById('history');
+
+        let startTime;
+        let isTesting = false;
+        let reactionTimes = [];
+        let timeoutId;
+        let delayTime;
+
+        // 从本地存储加载历史记录
+        if (localStorage.getItem('reactionTimes')) {
+            reactionTimes = JSON.parse(localStorage.getItem('reactionTimes'));
+            updateStats();
+        }
+
+        startBtn.addEventListener('click', startTest);
+        targetArea.addEventListener('click', handleClick);
+
+        function startTest() {
+            if (isTesting) return;
+            
+            isTesting = true;
+            startBtn.disabled = true;
+            instruction.textContent = "准备...";
+            targetArea.classList.remove('bg-green-500', 'bg-red-500');
+            targetArea.classList.add('bg-gray-200', 'pulse');
+
+            // 根据难度设置延迟时间
+            const difficulty = difficultySelect.value;
+            if (difficulty === 'easy') {
+                delayTime = 2000 + Math.random() * 3000; // 2-5秒
+            } else if (difficulty === 'medium') {
+                delayTime = 1000 + Math.random() * 2000; // 1-3秒
+            } else {
+                delayTime = 500 + Math.random() * 1500; // 0.5-2秒
+            }
+
+            timeoutId = setTimeout(() => {
+                targetArea.classList.remove('bg-gray-200', 'pulse');
+                targetArea.classList.add('bg-green-500');
+                instruction.textContent = "立即点击!";
+                startTime = new Date().getTime();
+            }, delayTime);
+        }
+
+        function handleClick() {
+            if (!isTesting) {
+                startTest();
+                return;
+            }
+
+            if (!startTime) {
+                // 提前点击
+                clearTimeout(timeoutId);
+                targetArea.classList.remove('bg-gray-200', 'pulse');
+                targetArea.classList.add('bg-red-500');
+                instruction.textContent = "太快了! 等待绿色";
+                setTimeout(resetTest, 1500);
+                return;
+            }
+
+            const endTime = new Date().getTime();
+            const reactionTime = endTime - startTime;
+            
+            reactionTimes.push(reactionTime);
+            localStorage.setItem('reactionTimes', JSON.stringify(reactionTimes));
+            
+            instruction.textContent = `${reactionTime} 毫秒`;
+            updateStats();
+            
+            setTimeout(resetTest, 1500);
+        }
+
+        function resetTest() {
+            isTesting = false;
+            startTime = null;
+            startBtn.disabled = false;
+            targetArea.classList.remove('bg-green-500', 'bg-red-500');
+            targetArea.classList.add('bg-gray-200');
+            instruction.textContent = "点击开始测试";
+        }
+
+        function updateStats() {
+            if (reactionTimes.length === 0) return;
+            
+            const bestTime = Math.min(...reactionTimes);
+            const avgTime = Math.round(reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length);
+            
+            bestTimeEl.textContent = `${bestTime} ms`;
+            avgTimeEl.textContent = `${avgTime} ms`;
+            
+            historyEl.innerHTML = '';
+            reactionTimes.forEach(time => {
+                const timeEl = document.createElement('span');
+                timeEl.className = 'bg-indigo-100 text-indigo-800 px-2 py-1 rounded';
+                timeEl.textContent = time;
+                historyEl.appendChild(timeEl);
+            });
+        }
+    </script>
+</body>
+</html>
