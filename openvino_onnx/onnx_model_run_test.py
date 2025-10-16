@@ -1,4 +1,3 @@
-
 import argparse
 import onnx
 import onnxruntime as ort
@@ -54,10 +53,15 @@ def test_onnx_model(onnx_path, batch_size=1, default_hw=224):
                     shape.append(default_hw)
 
         # ONNX dtype 转 numpy dtype
-        dtype = np.float32 if "float" in inp.type else np.int64
+        if "float16" in inp.type:
+            dtype = np.float16
+        elif "float" in inp.type:
+            dtype = np.float32
+        else:
+            dtype = np.int64
 
         # 构造随机输入
-        if dtype == np.float32:
+        if np.issubdtype(dtype, np.floating):
             dummy_input = np.random.randn(*shape).astype(dtype)
         else:
             dummy_input = np.random.randint(0, 100, size=shape, dtype=dtype)
