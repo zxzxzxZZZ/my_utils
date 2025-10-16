@@ -1,16 +1,18 @@
+
 import argparse
 import onnx
 import onnxruntime as ort
 import numpy as np
 
-def test_onnx_model(onnx_path, batch_size=1):
+def test_onnx_model(onnx_path, batch_size=1, default_hw=224):
     """
-    通用 ONNX 模型测试工具
+    DINOv3 ONNX 模型测试工具
     自动根据模型输入 shape 构造随机输入，并验证推理是否可用。
     
     Args:
         onnx_path (str): ONNX 模型路径
-        batch_size (int): 测试 batch size（会替换输入的第一个维度）
+        batch_size (int): 测试 batch size（替换输入的第 0 维）
+        default_hw (int): 高/宽默认值，如果 shape 不确定则使用
     """
     # -----------------------------
     # 1. 检查 ONNX 模型结构
@@ -36,9 +38,23 @@ def test_onnx_model(onnx_path, batch_size=1):
 
     for inp in inputs_info:
         name = inp.name
-        shape = [dim if isinstance(dim, int) else batch_size if i == 0 else 1 
-                 for i, dim in enumerate(inp.shape)]
-        dtype = np.float32 if inp.type == "tensor(float)" else np.int64
+        shape = []
+        for i, dim in enumerate(inp.shape):
+            if isinstance(dim, int):
+                shape.append(dim)
+            else:
+                # batch 维
+                if i == 0:
+                    shape.append(batch_size)
+                # 图像通道
+                elif i == 1:
+                    shape.append(3)
+                # 高/宽
+                else:
+                    shape.append(default_hw)
+
+        # ONNX dtype 转 numpy dtype
+        dtype = np.float32 if "float" in inp.type else np.int64
 
         # 构造随机输入
         if dtype == np.float32:
@@ -58,13 +74,14 @@ def test_onnx_model(onnx_path, batch_size=1):
     # 输出结果信息
     for name, result in zip(output_names, results):
         print(f"✅ 输出 [{name}] shape={result.shape}, dtype={result.dtype}")
-        print("示例输出:\n", result[:2])  # 打印前 2 条结果，避免太长
+        print("示例输出:\n", result[:2])  # 打印前 2 条结果
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="通用 ONNX 模型测试工具")
+    parser = argparse.ArgumentParser(description="DINOv3 ONNX 模型测试工具")
     parser.add_argument("--onnx_path", type=str, required=True, help="ONNX 模型路径")
     parser.add_argument("--batch_size", type=int, default=1, help="测试 batch size (默认=1)")
+    parser.add_argument("--default_hw", type=int, default=256, help="默认图像高/宽 (默认=224)")
     args = parser.parse_args()
 
-    test_onnx_model(args.onnx_path, args.batch_size)
+    test_onnx_model(args.onnx_path, args.batch_size, args.default_hw)
